@@ -36,6 +36,7 @@ class CheckSession(Resource):
         if user_id:
             user = User.query.get(user_id)
             return user.to_dict(), 200
+            
         return {"error": "No active session"}, 401
     
 
@@ -75,26 +76,24 @@ class Workouts(Resource):
             return workout.to_dict(), 201
         except Exception as e:
             return {"error": str(e)}, 400
-
+            
 class WorkoutByID(Resource):
     def patch(self, id):
         user_id = session.get('user_id')
+        if not user_id:
+            return {"error": "Unauthorized"}, 401
+            
         workout = Workout.query.filter_by(id=id, user_id=user_id).first()
         if not workout:
             return {"error": "Workout not found"}, 404
         
         data = request.get_json()
-        for attr in data:
-            setattr(workout, attr, data[attr])
-        db.session.commit()
-        return workout.to_dict(), 200
-
-    def delete(self, id):
-        user_id = session.get('user_id')
-        workout = Workout.query.filter_by(id=id, user_id=user_id).first()
-        if not workout:
-            return {"error": "Workout not found"}, 404
-        
-        db.session.delete(workout)
-        db.session.commit()
-        return {}, 204
+        try:
+            for attr in data:
+                if hasattr(workout, attr):
+                    setattr(workout, attr, data[attr])
+            
+            db.session.commit()
+            return workout.to_dict(), 200
+        except Exception as e:
+            return {"error": str(e)}, 400
